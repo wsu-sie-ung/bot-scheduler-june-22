@@ -1,0 +1,49 @@
+{
+  "name": "testworker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon ./src/index.js --exec babel-node",
+    "compile": "babel src --out-dir dist --source-maps inline --copy-files",
+    "production": "pm2 startOrRestart ecosystem.config.js --only worker --env production",
+    "test": "jest",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src",
+    "format": "prettier --write src"
+  },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "cookie-parser": "~1.4.7",
+    "core-js": "^3.47.0",
+    "cors": "^2.8.5",
+    "debug": "^4.4.3",
+    "dotenv": "^17.2.3",
+    "express": "~5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "moment": "^2.30.1",
+    "morgan": "~1.10.1",
+    "mysql2": "^3.16.1",
+    "node-cron": "^4.2.1",
+    "node-fetch": "^2.7.0",
+    "sequelize": "^6.37.7",
+    "uuid": "^9.0.1",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.28.6",
+    "@babel/node": "^7.28.6",
+    "@babel/preset-env": "^7.28.6",
+    "babel-jest": "^30.2.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.11",
+    "prettier": "^3.8.0",
+    "sequelize-cli": "^6.6.5",
+    "supertest": "^7.2.2"
+  }
+}
