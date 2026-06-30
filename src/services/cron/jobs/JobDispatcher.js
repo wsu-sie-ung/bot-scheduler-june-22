@@ -93,30 +93,30 @@ export default {
 
             // Fetch full unit details
             const unit = await db.Subsale.findByPk(lockedJob.unit_id, {
-            attributes: { exclude: [] }, //fetch all columns from subsale 
-            include: [ //for associations
-              { model: db.Country, as: 'country' },
-              { model: db.State, as: 'state' },
-              { model: db.City, as: 'city' },
+              attributes: { exclude: [] }, //fetch all columns from subsale 
+              include: [ //for associations
+                { model: db.Country, as: 'country' },
+                { model: db.State, as: 'state' },
+                { model: db.City, as: 'city' },
 
-              {
-                model: db.PropertyType,
-                as: 'property_type', //subsale map here first then property_category
-                include: [
-                  {
-                    model: db.PropertyCategory,
-                    as: 'property_category', //residential (1) / commercial (2)
-                  },
-                ],
-              },
+                {
+                  model: db.PropertyType,
+                  as: 'property_type', //subsale map here first then property_category
+                  include: [
+                    {
+                      model: db.PropertyCategory,
+                      as: 'property_category', //residential (1) / commercial (2)
+                    },
+                  ],
+                },
 
-              { model: db.SubsaleContent, as: 'contents' }, //for images 
-              { model: db.SubsaleDescription, as: 'descriptions' },
-              { model: db.SubsaleFurnishList, as: 'furnish_list' },
-              { model: db.SubsaleRoom, as: 'rooms' }, //for bedroom & bathroom count
-            ],
-            transaction: t,
-          })
+                { model: db.SubsaleContent, as: 'contents' }, //for images 
+                { model: db.SubsaleDescription, as: 'descriptions' },
+                { model: db.SubsaleFurnishList, as: 'furnish_list' },
+                { model: db.SubsaleRoom, as: 'rooms' }, //for bedroom & bathroom count
+              ],
+              transaction: t,
+            })
             if (!unit) throw new Error(`Unit ${lockedJob.unit_id} not found`)
 
             // Fetch portal & credentials
@@ -142,8 +142,8 @@ export default {
               password: password,
               unitInfo: unit.toJSON(),
               browserProfilePath: browserProfilePath,
-              post_to_propertyguru:job.post_to_propertyguru,
-              post_to_iproperty:job.post_to_iproperty,
+              post_to_propertyguru: job.post_to_propertyguru,
+              post_to_iproperty: job.post_to_iproperty,
               jobAttemptId: attempt.id,
             }
 
@@ -152,9 +152,22 @@ export default {
               try {
                 if (!config.workerUrl) throw new Error('Worker URL is not configured')
 
+                console.log("wodker " + config.workerUrl);
+
+                // console.log(JSON.stringify(payload))
+
+                // const response = await fetch(config.workerUrl, {
+                //   method: 'POST',
+                //   headers: { 'Content-Type': 'application/json' },
+                //   body: JSON.stringify(payload),
+                // })
+
                 const response = await fetch(config.workerUrl, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0',
+                  },
                   body: JSON.stringify(payload),
                 })
                 if (!response.ok) throw new Error(`Worker returned ${response.status} ${response.statusText}`)
@@ -165,7 +178,7 @@ export default {
                 // Update JobAttempt & Job
                 await db.sequelize.transaction(async (t2) => {
                   const finishedAt = new Date()
-                  
+
                   // Update Attempt Status
                   await db.JobAttempt.update(
                     {
@@ -185,7 +198,7 @@ export default {
 
                   // Update Job Status based on outcome
                   const updateData = { agent_trust_score: nextTrust }
-                  
+
                   if (status === 'success') {
                     updateData.status = 'success'
                     updateData.completed_at = finishedAt

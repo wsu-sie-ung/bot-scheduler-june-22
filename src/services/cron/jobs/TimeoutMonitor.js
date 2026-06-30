@@ -33,12 +33,14 @@ export default {
 
       // A job is stuck once its active attempt has run longer than its execution
       // budget (JobAttempt.execution_timeout_seconds, default 900s / 15 min).
-      const stuckJobs = inProgressJobs.filter((job) =>
+      const stuckJobs = inProgressJobs.filter((job) => {
+        console.log(job)
         isAttemptTimedOut(
           job.attempts[0].started_at,
           job.attempts[0].execution_timeout_seconds,
           now
         )
+      }
       )
 
       if (!stuckJobs.length) return
