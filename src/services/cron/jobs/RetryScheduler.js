@@ -1,6 +1,8 @@
 import { logger } from '../../../lib/Logger'
 import db from '../../../models'
 import { Op } from 'sequelize'
+import { isRetryExhausted } from '../retryPolicy'
+import { markRepostProcessedIfTerminal } from '../repostStatus'
 
 export default {
   name: 'Retry Scheduler',
@@ -44,7 +46,6 @@ export default {
             await job.update(
               {
                 status: 'pending',
-                retry_count: 0,
               },
               { transaction: t }
             )
@@ -53,13 +54,14 @@ export default {
           }
 
           // Retry limit reached
-          if ((job.retry_count || 0) >= job.max_retries) {
+          if (isRetryExhausted(latestAttempt.attempt_number, job.max_retries)) {
             await job.update(
               {
                 status: 'failed',
               },
               { transaction: t }
             )
+            await markRepostProcessedIfTerminal(job.repost_subsale_id, 'failed', t)
             logger.info(`RetryScheduler: Job ${job.id} exhausted retries`)
             return
           }
@@ -72,7 +74,6 @@ export default {
                 status: 'cooldown',
                 cooldown_until: cooldownDate,
                 scheduled_at: cooldownDate,
-                retry_count: (job.retry_count || 0) + 1,
               },
               { transaction: t }
             )
@@ -85,7 +86,6 @@ export default {
             {
               status: 'pending',
               scheduled_at: new Date(), // Run immediately
-              retry_count: (job.retry_count || 0) + 1,
             },
             { transaction: t }
           )

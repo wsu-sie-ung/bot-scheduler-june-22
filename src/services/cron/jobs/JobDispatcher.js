@@ -4,6 +4,8 @@ import { logger } from '../../../lib/Logger'
 import config from '../../../config' // config.workerUrl → bot endpoint
 import fetch from 'node-fetch'
 import { decrypt } from '../../../lib/Encryption'
+import { isRetryExhausted } from '../retryPolicy'
+import { markRepostProcessedIfTerminal } from '../repostStatus'
 import path from 'path'
 
 const TRUST_SCORE = {
@@ -192,13 +194,13 @@ export default {
                     updateData.status = 'cooldown'
                     updateData.cooldown_until = cooldownDate
                     updateData.scheduled_at = cooldownDate
-                    // We don't increment retry_count here, RetryScheduler will handle it or we let it sit
-                    // Actually, if we set it to cooldown, RetryScheduler might need to pick it up later?
-                    // Current RetryScheduler picks 'cooldown' jobs.
+                    // Captcha pauses the job for a 6h cooldown. Each re-dispatch
+                    // creates a new JobAttempt (incrementing attempt_number), so
+                    // RetryScheduler will mark the job 'failed' via isRetryExhausted
+                    // once the attempts are exhausted.
                   } else {
                     // Normal Failure
-                    const currentRetries = lockedJob.retry_count || 0
-                    if (currentRetries >= lockedJob.max_retries) {
+                    if (isRetryExhausted(attemptNumber, lockedJob.max_retries)) {
                       updateData.status = 'failed'
                     } else {
                       // Retry (Error) -> Keep in_progress, schedule for +1m
@@ -210,6 +212,13 @@ export default {
                   await db.Job.update(
                     updateData,
                     { where: { id: lockedJob.id }, transaction: t2 }
+                  )
+
+                  // If this outcome is terminal, close out the originating repost.
+                  await markRepostProcessedIfTerminal(
+                    lockedJob.repost_subsale_id,
+                    updateData.status,
+                    t2
                   )
                 })
 
@@ -237,9 +246,8 @@ export default {
                     )
 
                     const updateData = { agent_trust_score: nextTrust }
-                    const currentRetries = lockedJob.retry_count || 0
-                    
-                    if (currentRetries >= lockedJob.max_retries) {
+
+                    if (isRetryExhausted(attemptNumber, lockedJob.max_retries)) {
                       updateData.status = 'failed'
                     } else {
                       // Retry (Timeout/Error) -> Keep in_progress, schedule for +1m
@@ -250,6 +258,13 @@ export default {
                     await db.Job.update(
                       updateData,
                       { where: { id: lockedJob.id }, transaction: t3 }
+                    )
+
+                    // If this outcome is terminal, close out the originating repost.
+                    await markRepostProcessedIfTerminal(
+                      lockedJob.repost_subsale_id,
+                      updateData.status,
+                      t3
                     )
                   })
                 } catch (dbErr) {

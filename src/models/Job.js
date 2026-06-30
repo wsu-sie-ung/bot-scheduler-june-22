@@ -32,10 +32,13 @@ export default (sequelize, DataTypes) => {
         type: DataTypes.ENUM('propertyguru', 'iproperty'),
         allowNull: false,
       },
-      // repost_subsale_id: {
-      //   type: DataTypes.BIGINT.UNSIGNED,
-      //   allowNull: true,
-      // },
+      repost_subsale_id: {
+        // FK to repost_subsales.id (INTEGER UNSIGNED to match that table).
+        // Nullable: legacy jobs and the (inactive) auto-discovery generator
+        // create jobs with no originating repost.
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: true,
+      },
       unit_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,

@@ -9,8 +9,8 @@ import JobDispatcher from './JobDispatcher'
 import HandPickJobDispatcher from './HandPickJobGenerator' 
 import TimeoutMonitor from './TimeoutMonitor'
 import RetryScheduler from './RetryScheduler'
-// export default [JobDispatcher, HandPickJobDispatcher, RetryScheduler, TimeoutMonitor] 
-export default [JobDispatcher, HandPickJobDispatcher] 
+export default [JobDispatcher, HandPickJobDispatcher, RetryScheduler, TimeoutMonitor] 
+// export default [JobDispatcher, HandPickJobDispatcher] 
 // export default [JobDispatcher, RetryScheduler, TimeoutMonitor] 
 
 
