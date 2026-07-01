@@ -25,9 +25,15 @@ export async function markRepostProcessedIfTerminal(
   if (!repostSubsaleId || !isTerminalStatus(jobStatus)) return
 
   const [updated] = await db.RepostSubsale.update(
-    { status: 'processed', processed_at: new Date() },
+    { status: jobStatus, processed_at: new Date() },
     {
-      where: { id: repostSubsaleId, status: { [Op.ne]: 'processed' } },
+      // where: { id: repostSubsaleId, status: { [Op.ne]: 'processed' } },
+      where: {
+        id: repostSubsaleId,
+        status: {
+          [Op.notIn]: ['success', 'failed'],
+        },
+      },
       transaction,
     }
   )
