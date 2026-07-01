@@ -170,9 +170,13 @@ export default {
                   },
                   body: JSON.stringify(payload),
                 })
+                const responseClone = response.clone();
+
+
+
                 if (!response.ok) throw new Error(`Worker returned ${response.status} ${response.statusText}`)
                 const result = await response.json()
-                const textResult = await response.text();
+                const textResult = await responseClone.text();
                 console.log(`=====>${textResult}<=====`);
 
                 const { status, captchaDetected, error } = result
