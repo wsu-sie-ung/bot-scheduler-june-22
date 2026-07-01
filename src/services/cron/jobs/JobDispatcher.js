@@ -172,7 +172,9 @@ export default {
                 })
                 if (!response.ok) throw new Error(`Worker returned ${response.status} ${response.statusText}`)
                 const result = await response.json()
-                console.log(`=====>${result}<======`);
+                const textResult = await response.text();
+                console.log(`=====>${textResult}<=====`);
+
                 const { status, captchaDetected, error } = result
 
                 // Update JobAttempt & Job
