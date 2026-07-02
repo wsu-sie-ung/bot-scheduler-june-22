@@ -17,6 +17,6 @@ export default {
     timezone: '+08:00',
   },
   workerUrl: process.env.WORKER_URL,
-  maxConcurrentJobs: parseInt(process.env.MAX_CONCURRENT_JOBS, 10) || 1,
+  maxConcurrentJobs: parseInt(process.env.MAX_CONCURRENT_JOBS, 10) || 2,
   propnexAppKey: process.env.PROPNEX_APP_KEY,
 }

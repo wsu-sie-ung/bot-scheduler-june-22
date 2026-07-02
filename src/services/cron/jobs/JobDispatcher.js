@@ -31,7 +31,14 @@ export default {
       const runningJobsCount = await db.JobAttempt.count({
         where: { status: 'in_progress' },
       })
-      if (runningJobsCount >= config.maxConcurrentJobs) return
+      if (runningJobsCount >= config.maxConcurrentJobs){
+        console.log(`=====================> Ignore run because too many jobs in progress for now`);
+        return;
+      } 
+
+
+      console.log(`=====================>check max Con Run Jobs number: ${config.maxConcurrentJobs} vs ${runningJobsCount}`);
+      // return;
 
       // Fetch dispatchable jobs
       const jobs = await db.Job.findAll({
