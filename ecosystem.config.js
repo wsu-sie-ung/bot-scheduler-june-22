@@ -1,13 +1,28 @@
 module.exports = {
     apps : [
         {
-            name: "worker",
+            name: "worker-production",
             script: "./dist/index.js",
             instances: "1",
             exec_mode: "cluster",
             log_date_format: "YYYY-MM-DD HH:mm:ss:SSS Z",
-            error_file: "./logs/pm2-error.log",
-            out_file: "./logs/pm2-out.log",
+            error_file: "./logs/pm2-error-production.log",
+            out_file: "./logs/pm2-out-production.log",
+            env: {
+                NODE_ENV: "production",
+            },
+        },
+        {
+            name: "worker-staging",
+            script: "./dist/index.js",
+            instances: "1",
+            exec_mode: "cluster",
+            log_date_format: "YYYY-MM-DD HH:mm:ss:SSS Z",
+            error_file: "./logs/pm2-error-staging.log",
+            out_file: "./logs/pm2-out-staging.log",
+            env: {
+                NODE_ENV: "staging",
+            },
         }
     ]
 }
