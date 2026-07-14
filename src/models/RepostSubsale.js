@@ -58,6 +58,11 @@ export default (sequelize, DataTypes) => {
         },
       },
 
+      posting_channel: {
+        type: DataTypes.ENUM('propertyguru', 'iproperty'),
+        allowNull: false,
+      },
+
       status: {
         type: DataTypes.ENUM('pending', 'in_progress', 'processed'),
         allowNull: false,

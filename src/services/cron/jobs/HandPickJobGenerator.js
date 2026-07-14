@@ -97,14 +97,15 @@ export default {
       const portals = await db.Portal.findAll({
         where: {
           status: true,
-          portal_name: 'PropertyGuru',
         },
       })
 
       if (!portals.length) return
 
-      const portalMap = portals.reduce((acc, p) => {
-        acc[p.id] = p.portal_name.toLowerCase()
+      // Maps a posting_channel value ('propertyguru' | 'iproperty') to its
+      // active Portal id.
+      const portalIdByChannel = portals.reduce((acc, p) => {
+        acc[p.portal_name.toLowerCase()] = p.id
         return acc
       }, {})
 
@@ -122,115 +123,112 @@ export default {
 
         if (!subsale || !agent) continue
 
-        for (const portalId in portalMap) {
-          const portalName = portalMap[portalId]
+        const platform = repost.posting_channel
+        const portalId = portalIdByChannel[platform]
 
-          let platform = null
-          if (portalName.includes('propertyguru')) platform = 'propertyguru'
-          else continue
+        if (!portalId) continue
 
-          const credential = await db.PortalCredential.findOne({
-            where: {
-              agent_id: agent.id,
-              portal_id: portalId,
-            },
-          })
+        const credential = await db.PortalCredential.findOne({
+          where: {
+            agent_id: agent.id,
+            portal_id: portalId,
+          },
+        })
 
-          if (!credential) continue
+        if (!credential) continue
 
-          const existingJob = await db.Job.findOne({
-            where: {
-              unit_id: subsale.id,
-              agent_id: agent.id,
-              platform,
-              status: { [Op.notIn]: ['cancelled', 'failed', 'deleted'] },
-            },
-          })
-
-          if (existingJob) continue
-
-          const recentFailures = await db.Job.count({
-            where: {
-              agent_id: agent.id,
-              platform,
-              status: 'failed',
-              updated_at: {
-                [Op.gt]: new Date(Date.now() - 24 * 60 * 60 * 1000),
-              },
-            },
-          })
-
-          const platformSensitivity = 5
-
-          const lastAgentJob = await db.Job.findOne({
-            where: {
-              agent_id: agent.id,
-              platform,
-            },
-            order: [['created_at', 'DESC']],
-            attributes: ['agent_trust_score'],
-          })
-
-          const trustScore = lastAgentJob?.agent_trust_score ?? 1.0
-
-          // Seed the per-agent spacing floor once per run from the agent's
-          // latest future, active job (any platform).
-          let agentFloorMs = lastScheduledByAgent.get(agent.id)
-          if (agentFloorMs === undefined) {
-            const latestAgentJob = await db.Job.findOne({
-              where: {
-                agent_id: agent.id,
-                status: { [Op.notIn]: ['cancelled', 'failed', 'deleted'] },
-                scheduled_at: { [Op.gt]: new Date() },
-              },
-              order: [['scheduled_at', 'DESC']],
-              attributes: ['scheduled_at'],
-            })
-
-            agentFloorMs = latestAgentJob
-              ? new Date(latestAgentJob.scheduled_at).getTime()
-              : null
-            lastScheduledByAgent.set(agent.id, agentFloorMs)
-          }
-
-          let scheduledAt = computeNextRunAt({
-            platformSensitivity,
-            trustScore,
-            recentFailures,
-          })
-
-          // Enforce at least MIN_AGENT_INTERVAL_MS after the agent's last
-          // scheduled job; use the normally computed time when there's room.
-          if (agentFloorMs !== null) {
-            const earliestAllowed = agentFloorMs + MIN_AGENT_INTERVAL_MS
-            if (scheduledAt.getTime() < earliestAllowed) {
-              scheduledAt = new Date(earliestAllowed)
-            }
-          }
-
-          await db.Job.create({
+        const existingJob = await db.Job.findOne({
+          where: {
+            unit_id: subsale.id,
             agent_id: agent.id,
             platform,
-            portal_id: portalId,
-            unit_id: subsale.id,
-            repost_subsale_id: repost.id,
-            status: 'pending',
-            scheduled_at: scheduledAt,
-            max_retries: 3,
-            agent_trust_score: trustScore,
-            platform_sensitivity_score: platformSensitivity,
-            post_to_propertyguru: 1,
-            post_to_iproperty: 0,
+            status: { [Op.notIn]: ['cancelled', 'failed', 'deleted'] },
+          },
+        })
+
+        if (existingJob) continue
+
+        const recentFailures = await db.Job.count({
+          where: {
+            agent_id: agent.id,
+            platform,
+            status: 'failed',
+            updated_at: {
+              [Op.gt]: new Date(Date.now() - 24 * 60 * 60 * 1000),
+            },
+          },
+        })
+
+        const platformSensitivity = 5
+
+        const lastAgentJob = await db.Job.findOne({
+          where: {
+            agent_id: agent.id,
+            platform,
+          },
+          order: [['created_at', 'DESC']],
+          attributes: ['agent_trust_score'],
+        })
+
+        const trustScore = lastAgentJob?.agent_trust_score ?? 1.0
+
+        // Seed the per-agent spacing floor once per run from the agent's
+        // latest future, active job (any platform).
+        let agentFloorMs = lastScheduledByAgent.get(agent.id)
+        if (agentFloorMs === undefined) {
+          const latestAgentJob = await db.Job.findOne({
+            where: {
+              agent_id: agent.id,
+              status: { [Op.notIn]: ['cancelled', 'failed', 'deleted'] },
+              scheduled_at: { [Op.gt]: new Date() },
+            },
+            order: [['scheduled_at', 'DESC']],
+            attributes: ['scheduled_at'],
           })
 
-          // Record this job as the agent's new spacing floor so later jobs in
-          // this run (and DB re-seeds) stack at least MIN_AGENT_INTERVAL_MS on.
-          lastScheduledByAgent.set(agent.id, scheduledAt.getTime())
-
-          logger.info(
-            `Batch Repost Job Generated | repost=${repost.id} unit=${subsale.id}`
-          )
+          agentFloorMs = latestAgentJob
+            ? new Date(latestAgentJob.scheduled_at).getTime()
+            : null
+          lastScheduledByAgent.set(agent.id, agentFloorMs)
         }
+
+        let scheduledAt = computeNextRunAt({
+          platformSensitivity,
+          trustScore,
+          recentFailures,
+        })
+
+        // Enforce at least MIN_AGENT_INTERVAL_MS after the agent's last
+        // scheduled job; use the normally computed time when there's room.
+        if (agentFloorMs !== null) {
+          const earliestAllowed = agentFloorMs + MIN_AGENT_INTERVAL_MS
+          if (scheduledAt.getTime() < earliestAllowed) {
+            scheduledAt = new Date(earliestAllowed)
+          }
+        }
+
+        await db.Job.create({
+          agent_id: agent.id,
+          platform,
+          portal_id: portalId,
+          unit_id: subsale.id,
+          repost_subsale_id: repost.id,
+          status: 'pending',
+          scheduled_at: scheduledAt,
+          max_retries: 3,
+          agent_trust_score: trustScore,
+          platform_sensitivity_score: platformSensitivity,
+          post_to_propertyguru: platform === 'propertyguru' ? 1 : 0,
+          post_to_iproperty: platform === 'iproperty' ? 1 : 0,
+        })
+
+        // Record this job as the agent's new spacing floor so later jobs in
+        // this run (and DB re-seeds) stack at least MIN_AGENT_INTERVAL_MS on.
+        lastScheduledByAgent.set(agent.id, scheduledAt.getTime())
+
+        logger.info(
+          `Batch Repost Job Generated | repost=${repost.id} unit=${subsale.id} platform=${platform}`
+        )
 
         // await repost.update({
         //   status: 'processed',
